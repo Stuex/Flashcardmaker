@@ -38,7 +38,7 @@ svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-l
 @keyframes fi{from{opacity:0}}@keyframes pop{from{opacity:0;transform:scale(.92) translateY(10px)}}
 @keyframes pl{to{outline-offset:6px}}
 .a-n{animation:an .35s cubic-bezier(.2,.8,.2,1)}.a-p{animation:ap .35s cubic-bezier(.2,.8,.2,1)}.a-f{animation:af .4s cubic-bezier(.2,.8,.2,1)}.a-s{animation:sk .3s}
-#pr{flex:1;height:3px;background:#222;border-radius:3px;overflow:hidden}#pr i{display:block;height:100%;background:#fff;transition:width .4s}
+#cn{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:6px}#md{display:none;border:1.5px solid #333;border-radius:12px;overflow:hidden;transition:border-color .25s}.xl #md{display:flex}#md:has(.on){border-color:#fff}.sg{flex:1;border:0;background:#000;color:#fff;font:600 11px system-ui,sans-serif;padding:5px 2px;cursor:pointer;white-space:nowrap;transition:background .2s,color .2s}.sg.on{background:#fff;color:#000}.sg:focus-visible{outline:2px solid #fff;outline-offset:-2px}.fz{display:flex;align-items:flex-start;font:700 17px Newsreader,Georgia,serif}.fz small{font:700 10px system-ui,sans-serif;margin-top:1px}.vw #tb .ib{opacity:.3}.vw .fb[data-id=add] i,.vw .fb[data-id=del] i{opacity:.35}#pr{flex:none;height:3px;background:#222;border-radius:3px;overflow:hidden}#pr i{display:block;height:100%;background:#fff;transition:width .4s}
 #fab{position:relative}
 .fm{width:48px;height:48px;border-radius:50%;background:#fff;color:#000;border:0;display:grid;place-items:center;cursor:pointer;transition:transform .35s}
 #fab.open .fm{transform:rotate(135deg)}
@@ -69,14 +69,14 @@ input{background:#000;color:#fff;border:1.5px solid #444;border-radius:10px;padd
 <div id="app">
 <div class="top"><span id="lb"></span><span id="tt" style="display:flex;gap:8px"></span></div>
 <div id="bx"><div id="tb"></div><div id="pg"><div id="ed" contenteditable="true" spellcheck="true" data-nh="1" data-n="Card editor" data-d="Type the front or back here. Swipe left or right to move between sides, pinch to resize text. Images and text stack top to bottom and never overlap."></div></div></div>
-<div class="bot"><span id="bl" style="display:contents"></span><div id="pr"><i></i></div><span id="br" style="display:contents"></span><div id="fab"></div></div>
+<div class="bot"><span id="bl" style="display:contents"></span><div id='cn'><div id='md' data-n='View / Edit mode' data-d='Switch an imported Excel deck between View Only (read and flip cards) and Edit Only (change cards)' data-k='Alt + M  or  ⌥ M'><button class='sg' data-mode='view'>View only</button><button class='sg' data-mode='edit'>Edit only</button></div><div id='pr'><i></i></div></div><span id="br" style="display:contents"></span><div id="fab"></div></div>
 </div>
 <div id="tp"></div><div id="ts"></div>
 <input type="file" id="fi" accept=".xlsx,.xls,.csv" hidden><input type="file" id="fim" accept="image/*" hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const $=s=>document.querySelector(s),ed=$('#ed'),K='fc_v2',mac=/Mac|iPhone|iPad/.test(navigator.platform+navigator.userAgent);
-let S={cards:[{f:'',b:''}],s:0,fs:1,sc:0},rg=null,quiet=false,dl=null,warned=0,tt;
+let S={cards:[{f:'',b:''}],s:0,fs:1,sc:0,mode:'edit',xl:null},rg=null,quiet=false,dl=null,warned=0,tt,xwb=null;
 try{const j=JSON.parse(localStorage.getItem(K)||'null');if(j&&j.cards&&j.cards.length){S=Object.assign(S,j);S.s=Math.min(S.s,S.cards.length*2-1)}}catch(e){}
 try{window.claude&&claude.use&&claude.use('downloads').then(d=>dl=d).catch(()=>{})}catch(e){}
 const esc=s=>s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])),safe=u=>/^(https?:|mailto:|tel:)/i.test(u||'');
@@ -90,8 +90,8 @@ const draw=dir=>{const i=S.s>>1,sd=S.s&1,c=S.cards[i],bg=c[sd?'bc':'fc'];rg=null
  ed.style.fontSize=1.35*S.fs+'rem';ed.dataset.ph=sd?'Back: type the answer…':'Front: type the question…';
  $('#lb').textContent=`Card ${i+1} of ${S.cards.length} · ${sd?'Back':'Front'}`;$('#pr i').style.width=(S.s+1)/(S.cards.length*2)*100+'%';
  ed.className='';if(dir){void ed.offsetWidth;ed.className='a-'+dir}ed.scrollTop=0;
- if(document.activeElement===ed){const r=document.createRange();r.selectNodeContents(ed);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r)}persist()};
-const go=n=>{const m=S.cards.length*2-1;if(n<0){ed.className='';void ed.offsetWidth;ed.className='a-s';return}sv();
+ if(document.activeElement===ed){const r=document.createRange();r.selectNodeContents(ed);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r)}applyMode();persist()};
+const go=n=>{const m=S.cards.length*2-1;if(n<0||(n>m&&isView())){ed.className='';void ed.offsetWidth;ed.className='a-s';return}sv();
  if(n>m){S.cards.push({f:'',b:''});S.s=m+1;draw('n');return}const same=n>>1===S.s>>1,fw=n>S.s;S.s=n;draw(same?'f':fw?'n':'p')};
 const foc=()=>{if(document.activeElement!==ed){ed.focus();if(rg){const s=getSelection();s.removeAllRanges();s.addRange(rg)}}};
 const ex=(c,v)=>{foc();x('styleWithCSS',true);x(c,v);sv()};
@@ -101,7 +101,7 @@ const dcol=()=>getComputedStyle(ed).color;
 const col=c=>{foc();x('styleWithCSS',true);const cur=document.queryCommandValue('foreColor');x('foreColor',cur===rgbs(c)?dcol():c);sv()};
 const hil=c=>{foc();x('styleWithCSS',true);const cur=document.queryCommandValue('hiliteColor');x('hiliteColor',cur===rgbs(c)?'transparent':c);sv()};
 const mkl=c=>{foc();const o=anc('OL');if(o){if(o.className===c)x('insertOrderedList');else o.className=c}else{x('insertOrderedList');const n=anc('OL');if(n)n.className=c}sv()};
-const ind=()=>{foc();let b=blk();if(!b){x('formatBlock','div');b=blk()}if(b)b.style.textIndent=b.style.textIndent?'':'0.5in';sv()};
+const ind=d=>{foc();let b=blk();if(!b){x('formatBlock','div');b=blk()}if(!b)return;const cur=parseFloat(b.style.textIndent)||0,nv=Math.max(0,Math.min(6,Math.round((cur+d)*2)/2));b.style.textIndent=nv?nv+'in':'';sv()};
 const dlgs=(t,b,btns)=>{const o=document.createElement('div');o.className='ov';o.innerHTML=`<div class="dl" role="dialog" aria-label="${t}"><h2>${t}</h2><div class="bd">${b}</div><div class="bt"></div></div>`;const bt=o.querySelector('.bt');
  btns.forEach(([l,f,p])=>{const e=document.createElement('button');e.textContent=l;if(p)e.className='pm';e.onclick=()=>{o.remove();f&&f()};bt.append(e)});
  o.onclick=e=>{if(e.target===o)o.remove()};o.querySelectorAll('input').forEach(i=>i.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();o.querySelector('.pm').click()}});
@@ -120,25 +120,40 @@ const tx=h=>{const d=document.createElement('div');d.innerHTML=h;return d.textCo
 const all=()=>{sv();const o=dlgs('All cards',S.cards.map((c,i)=>`<button class="rw" data-i="${i}"><b>${i+1}</b><span>${esc(tx(c.f)||'(empty front)')}</span><span>${esc(tx(c.b)||'(empty back)')}</span></button>`).join(''),[['Close',0,1]]);
  o.querySelectorAll('.rw').forEach(b=>b.onclick=()=>{o.remove();S.s=b.dataset.i*2;draw('n')})};
 const zoom=d=>{S.fs=Math.max(.7,Math.min(2.5,S.fs+d));ed.style.fontSize=1.35*S.fs+'rem';persist()};
+const isView=()=>!!(S.xl&&S.mode==='view');
+const applyMode=()=>{const v=isView();document.body.classList.toggle('xl',!!S.xl);document.body.classList.toggle('vw',v);ed.contentEditable=v?'false':'true';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===(v?'view':'edit')))};
+const setMode=m=>{if(!isView())sv();S.mode=m;draw();toast(m==='view'?'View Only: cards are read-only':'Edit Only: you can change cards')};
+const wipe=(m,keep)=>{try{localStorage.removeItem(K)}catch(e){}quiet=true;xwb=null;S={cards:[{f:'',b:''}],s:0,fs:keep?S.fs:1,sc:0};draw('n');toast(m)};
+const run=a=>{if(isView()&&(a[5]==='tb'||a[0]==='add'||a[0]==='del'))return toast('View Only mode. Switch to Edit only to change cards.');a[6]()};
+const kn=e=>{const m={'[':'BracketLeft',']':'BracketRight','=':'Equal','-':'Minus','/':'Slash'};return /^Key[A-Z]$/.test(e.code)?e.code[3]:/^Digit[0-9]$/.test(e.code)?e.code[5]:e.code&&e.code!=='Unidentified'?e.code:(m[e.key]||(e.key||'').toUpperCase())};
+const fsz=d=>{foc();const s=getSelection();if(!s.rangeCount||s.isCollapsed||!ed.contains(s.anchorNode)){zoom(d/16.2);return}let n=s.getRangeAt(0).startContainer;n=n.nodeType===3?n.parentNode:n;const nw=Math.max(6,Math.min(120,Math.round(parseFloat(getComputedStyle(n).fontSize)*.75)+d));x('styleWithCSS',false);x('fontSize','7');ed.querySelectorAll("font[size='7']").forEach(f=>{f.removeAttribute('size');f.style.fontSize=nw+'pt'});sv()};
 const fab=v=>$('#fab').classList.toggle('open',v===undefined?undefined:!!v);
 /* import / export */
 $('#fi').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
  try{const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellStyles:true}),ws=wb.Sheets[wb.SheetNames[0]],rr=XLSX.utils.decode_range(ws['!ref']||'A1:A1'),out=[];
  const cd=(r,c)=>{const z=ws[XLSX.utils.encode_cell({r,c})];if(!z)return['',''];let h=esc(String(z.w??z.v??'')).replace(/\r?\n/g,'<br>');
   if(h&&z.l&&safe(z.l.Target))h=`<a href="${esc(z.l.Target)}" target="_blank" rel="noopener">${h}</a>`;const s=z.s;return[h,s&&s.patternType==='solid'&&s.fgColor&&s.fgColor.rgb?'#'+s.fgColor.rgb.slice(-6):'']};
- for(let r=rr.s.r;r<=rr.e.r;r++){const a=cd(r,0),b=cd(r,1);if(a[0]||b[0])out.push({f:a[0],fc:a[1],b:b[0],bc:b[1]})}
+ for(let r=rr.s.r;r<=rr.e.r;r++){const a=cd(r,0),b=cd(r,1);if(a[0]||b[0])out.push({f:a[0],fc:a[1],b:b[0],bc:b[1],r})}
  if(!out.length)return toast('No data found in columns A and B');
- const fin=rep=>{sv();quiet=false;if(rep){S.cards=out;S.s=0}else{S.s=S.cards.length*2;S.cards.push(...out)}draw('n');toast(out.length+' cards imported')};
+ const fin=rep=>{sv();quiet=false;if(rep||!S.xl){S.xl={name:f.name,sheet:wb.SheetNames[0],max:rr.e.r};xwb=wb;S.mode='edit'}else out.forEach(c=>delete c.r);if(rep){S.cards=out;S.s=0}else{S.s=S.cards.length*2;S.cards.push(...out)}draw('n');toast(out.length+' cards imported. Use View only / Edit only below.')};
  if(S.cards.length===1&&!S.cards[0].f&&!S.cards[0].b)fin(1);else dlgs('Import Excel','Replace your current cards, or add the imported ones at the end?',[['Cancel'],['Add to end',()=>fin(0)],['Replace',()=>fin(1),1]])}
  catch(err){toast('Could not read that file')}};
 const pl=h=>{const t=document.createElement('div');t.style.cssText='position:fixed;left:-9999px;top:0;width:600px';t.innerHTML=h;t.querySelectorAll('img').forEach(i=>i.replaceWith('[image]'));
  t.querySelectorAll('ol').forEach(o=>[...o.children].forEach((li,j)=>li.prepend((o.className==='al'?String.fromCharCode(65+j%26):j+1)+') ')));
  document.body.append(t);const a=t.querySelector('a[href]'),r=[t.innerText.trim(),a&&a.href];t.remove();return r};
-const exp=async()=>{sv();const rows=[],ls=[];S.cards.forEach((c,i)=>{const a=pl(c.f),b=pl(c.b);rows.push([a[0],b[0]]);if(a[1])ls.push(['A'+(i+1),a[1]]);if(b[1])ls.push(['B'+(i+1),b[1]])});
- const ws=XLSX.utils.aoa_to_sheet(rows);ls.forEach(([k,u])=>{if(ws[k])ws[k].l={Target:u}});ws['!cols']=[{wch:40},{wch:60}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Flashcards');
+const newWb=()=>{const rows=[],ls=[];S.cards.forEach((c,i)=>{const a=pl(c.f),b=pl(c.b);rows.push([a[0],b[0]]);if(a[1])ls.push(['A'+(i+1),a[1]]);if(b[1])ls.push(['B'+(i+1),b[1]])});
+ const ws=XLSX.utils.aoa_to_sheet(rows);ls.forEach(([k,u])=>{if(ws[k])ws[k].l={Target:u}});ws['!cols']=[{wch:40},{wch:60}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Flashcards');return wb};
+const savWb=async(wb,name)=>{
  const blob=new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
- try{if(dl)await dl.save({filename:'flashcards.xlsx',data:blob});else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='flashcards.xlsx';a.click()}
-  try{localStorage.removeItem(K)}catch(e){}quiet=true;S={cards:[{f:'',b:''}],s:0,fs:S.fs,sc:0};draw('n');toast('Exported. Saved data cleared.')}catch(e){toast('Export cancelled. Your data is still saved.')}};
+ try{if(dl)await dl.save({filename:name,data:blob});else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click()}
+  wipe('Saved. Saved data cleared.',1)}catch(e){toast('Save cancelled. Your data is still saved.')}};
+const oldWb=()=>{const n=S.xl.sheet,w=xwb||(()=>{const b=XLSX.utils.book_new();XLSX.utils.book_append_sheet(b,XLSX.utils.aoa_to_sheet([]),n);return b})(),ws=w.Sheets[n]||w.Sheets[w.SheetNames[0]],old=XLSX.utils.decode_range(ws['!ref']||'A1:B1');let mx=S.xl.max,nx=S.xl.max+1;
+ for(let r=0;r<=S.xl.max;r++){delete ws[XLSX.utils.encode_cell({r,c:0})];delete ws[XLSX.utils.encode_cell({r,c:1})]}
+ S.cards.forEach(cd=>{const r=cd.r!=null?cd.r:nx++;mx=Math.max(mx,r);[[cd.f,0],[cd.b,1]].forEach(([h,c])=>{const t=pl(h);if(!t[0])return;const z={t:'s',v:t[0]};if(t[1])z.l={Target:t[1]};ws[XLSX.utils.encode_cell({r,c})]=z})});
+ ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(mx,old.e.r),c:Math.max(1,old.e.c)}});return w};
+const exp=()=>{sv();const nw=()=>savWb(newWb(),'flashcards.xlsx');if(!S.xl)return nw();
+ dlgs('Save changes','<p>Saving means writing your cards to Excel: back into the file you opened, or as a separate new Excel file.</p><p>Opened file: <b>'+esc(S.xl.name)+'</b></p><p style="color:#aaa">Your browser asks where to save. Pick the original file to replace it. Saved data is cleared from this browser afterwards.</p>',[['Cancel'],['New Excel file',nw],['Existing file',()=>savWb(oldWb(),S.xl.name.replace(/[.][^.]*$/,'')+'.xlsx'),1]])};
+const quit=()=>dlgs('Quit without saving?','<p>Saving means exporting a new Excel file, or saving your changes back into the Excel file you opened.</p><p>If you quit now, every card and any imported Excel data is removed from this browser and the workspace is reset.</p>',[['Cancel'],['Save first',()=>exp()],['Quit without saving',()=>wipe('Workspace reset. Local data cleared.'),1]]);
 /* actions: id, name, description, keys, icon, place, fn */
 const P=p=>`<svg viewBox="0 0 24 24"><path d="${p}"/></svg>`,ck=c=>`<span class="cl" style="color:${c}">A</span>`,hk=c=>`<span class="hc" style="background:${c}">A</span>`;
 const Y='#ffe14d',R='#ff4d4d',PK='#ff7ab8',G='#4dff88';
@@ -152,14 +167,17 @@ const A=[
 ['underline','Underline','Turn underline on or off','m+U','<u>U</u>','tb',()=>ex('underline')],
 ['cen','Center','Center this paragraph, press again to return to the left','m+E',P('M4 6h16M7 12h10M5 18h14'),'tb',()=>{foc();ex(document.queryCommandState('justifyCenter')?'justifyLeft':'justifyCenter')}],
 ['lef','Align left','Align this paragraph to the left','m+L',P('M4 6h16M4 12h10M4 18h14'),'tb',()=>ex('justifyLeft')],
-['ind','First-line indent','Indent only the first line of this paragraph by 0.5 inch, press again to remove','m+T',P('M4 6h16M10 12h10M4 18h16M4 9l3 3-3 3'),'tb',ind],
+['ind','First-line indent','Indent only the first line of this paragraph to the next 0.5 inch stop. Each press moves it another 0.5 inch further','m+T|a+s+T',P('M4 6h16M10 12h10M4 18h16M4 9l3 3-3 3'),'tb',()=>ind(.5)],
+['uni','Reduce first-line indent','Move the first line of this paragraph back by 0.5 inch','m+s+T|a+s+R',P('M4 6h16M10 12h10M4 18h16M7 9l-3 3 3 3'),'tb',()=>ind(-.5)],
 ['alp','Lettered list','Turn the selected lines into an A) B) C) list, press again to remove','m+s+L|m+s+B','A)','tb',()=>mkl('al')],
-['num','Numbered list','Turn the selected lines into a 1) 2) 3) list, press again to remove','m+s+N','1)','tb',()=>mkl('nm')],
+['num','Numbered list','Turn the selected lines into a 1) 2) 3) list, press again to remove','m+s+N|a+s+N','1)','tb',()=>mkl('nm')],
 ['cy','Yellow text','Turn yellow text on or off for the selection or what you type next','m+Y',ck(Y),'tb',()=>col(Y)],
 ['cr','Red text','Turn red text on or off','m+R',ck(R),'tb',()=>col(R)],
 ['cp','Pink text','Turn pink text on or off','m+P',ck(PK),'tb',()=>col(PK)],
 ['cg','Green text','Turn green text on or off','m+G',ck(G),'tb',()=>col(G)],
-['cw','White / black text','Switch the text between white and black','m+W',ck('#fff'),'tb',()=>col('#ffffff')],
+['cw','White / black text','Switch the text between white and black','m+W|a+s+W',ck('#fff'),'tb',()=>col('#ffffff')],
+['fup','Increase font size','Make the selected text 1 point bigger on every press (with nothing selected, the whole card grows)','m+BracketRight|a+BracketRight','<span class="fz">A<small>+</small></span>','tb',()=>fsz(1)],
+['fdn','Decrease font size','Make the selected text 1 point smaller on every press (with nothing selected, the whole card shrinks)','m+BracketLeft|a+BracketLeft','<span class="fz">A<small>−</small></span>','tb',()=>fsz(-1)],
 ['hy','Yellow highlight','Highlight the selection in yellow, press again to remove','a+Y',hk(Y),'tb',()=>hil(Y)],
 ['hp','Pink highlight','Highlight the selection in pink, press again to remove','a+P',hk(PK),'tb',()=>hil(PK)],
 ['img','Add image','Insert a picture. It sits on its own lines, so text above pushes it down and never overlaps it','a+I',P('M3 5h18v14H3zM8 10h.01M21 16l-5-5L8 19'),'tb',()=>{foc();$('#fim').click()}],
@@ -168,22 +186,24 @@ const A=[
 ['prv','Previous','Go back one side: Back to Front, then the previous card. You can also swipe right','s+Tab',P('M15 18l-6-6 6-6'),'bot',()=>go(S.s-1)],
 ['nxt','Next','Go forward one side: Front to Back, then the next card. On the last side it adds a new card. You can also swipe left','Tab',P('M9 18l6-6-6-6'),'bot',()=>go(S.s+1)],
 ['imp','Import Excel','Load an Excel file: column A becomes the fronts, column B the backs, and cell fill colors are kept','a+O',P('M12 15V3M7 8l5-5 5 5M4 17v4h16v-4'),'fab',()=>$('#fi').click()],
-['exp','Export Excel','Save fronts in column A and backs in column B as an .xlsx file, then clear the saved data','m+S',P('M12 3v12M7 10l5 5 5-5M4 17v4h16v-4'),'fab',exp],
+['exp','Save / Export Excel','Save fronts in column A and backs in column B. For an imported file you choose: save into the opened file or export a new one. Saved data is then cleared','m+S',P('M12 3v12M7 10l5 5 5-5M4 17v4h16v-4'),'fab',()=>exp()],
 ['add','Add card','Insert a blank card after this one','a+N',P('M4 4h16v16H4zM12 8v8M8 12h8'),'fab',add],
 ['del','Delete card','Delete this card. You can undo right away','a+D',P('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13'),'fab',del],
 ['all','All cards','Browse every card and jump to one','a+C',P('M4 5h6v6H4zM14 5h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z'),'fab',all],
-['zi','Bigger text','Make card text larger (or pinch outwards on touch screens)','a+Equal','','',()=>zoom(.15)],
-['zo','Smaller text','Make card text smaller (or pinch inwards on touch screens)','a+Minus','','',()=>zoom(-.15)]];
-const kl=s=>s.split('|').map(k=>k.split('+').map(p=>({m:mac?'⌘':'Ctrl',a:mac?'⌥':'Alt',s:mac?'⇧':'Shift',Slash:'/',Equal:'=',Minus:'−'}[p]||p)).join(mac?' ':' + ')).join(' or ');
+['qt','Quit','Quit without saving: clears all cards and Excel data from this browser and resets the workspace','a+Q',P('M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0'),'fab',()=>quit()],
+['mode','Switch View / Edit','Switch an imported Excel deck between View Only and Edit Only','a+M','','',()=>S.xl?setMode(isView()?'edit':'view'):toast('View / Edit mode is available after importing an Excel file')],
+['zi','Zoom card in','Scale all card text up (or pinch outwards on touch screens)','a+Equal','','',()=>zoom(.15)],
+['zo','Zoom card out','Scale all card text down (or pinch inwards on touch screens)','a+Minus','','',()=>zoom(-.15)]];
+const kl=(s,m=mac)=>s.split('|').map(k=>k.split('+').map(p=>({m:m?'⌘':'Ctrl',a:m?'⌥':'Alt',s:m?'⇧':'Shift',Slash:'/',Equal:'=',Minus:'−',BracketLeft:'[',BracketRight:']'}[p]||p)).join(m?' ':' + ')).join(' or ');
 const btn=(a,c)=>`<button class="${c}" data-id="${a[0]}" data-n="${a[1]}" data-d="${a[2]}" data-k="${a[3]?kl(a[3]):''}" aria-label="${a[1]}">${a[4]}</button>`,H=p=>A.filter(a=>a[5]===p);
 $('#tt').innerHTML=H('top').map(a=>btn(a,'ib')).join('');$('#tb').innerHTML=H('tb').map(a=>btn(a,'ib')).join('');
 $('#bl').innerHTML=btn(H('bot')[0],'ib');$('#br').innerHTML=btn(H('bot')[1],'ib');
-$('#fab').innerHTML=`<div id="mn">${H('fab').map((a,i)=>`<button class="fb" style="--i:${4-i}" data-id="${a[0]}" data-n="${a[1]}" data-d="${a[2]}" data-k="${kl(a[3])}" aria-label="${a[1]}"><span>${a[1]}</span><i>${a[4]}</i></button>`).join('')}</div><button class="fm" data-id="fab" data-n="More actions" data-d="Open or close the extra actions: import, export, add card, delete card, all cards" aria-label="More actions">${P('M12 5v14M5 12h14')}</button>`;
+$('#fab').innerHTML=`<div id="mn">${H('fab').map((a,i)=>`<button class="fb" style="--i:${H('fab').length-1-i}" data-id="${a[0]}" data-n="${a[1]}" data-d="${a[2]}" data-k="${kl(a[3])}" aria-label="${a[1]}"><span>${a[1]}</span><i>${a[4]}</i></button>`).join('')}</div><button class="fm" data-id="fab" data-n="More actions" data-d="Open or close the extra actions: import, export, add card, delete card, all cards" aria-label="More actions">${P('M12 5v14M5 12h14')}</button>`;
 const NAV=[['Move one character','← →','← →'],['Move one word','⌥ ← →','Ctrl ← →'],['Select one character','⇧ ← →','⇧ ← →'],['Select one word','⌥ ⇧ ← →','Ctrl ⇧ ← →'],['Move one line','↑ ↓','↑ ↓'],['Start / end of line','⌘ ← → or Fn ← →','Home / End'],['Previous / next paragraph','⌥ ↑ ↓','Ctrl ↑ ↓'],['Select one line','⇧ ↑ ↓','⇧ ↑ ↓'],['Select to start / end of line','⇧ ⌘ ← → or Fn ⇧ ← →','⇧ Home / End'],['Select to previous / next paragraph','⌥ ⇧ ↑ ↓','Ctrl ⇧ ↑ ↓'],['Page up / down','Fn ↑ ↓','PgUp / PgDn'],['Top / bottom of visible page','⌘ PgUp / PgDn','Ctrl PgUp / PgDn'],['Start / end of card','⌘ Home / End or ⌘ Fn ← →','Ctrl Home / End'],['Select to start / end of card','⌘ ⇧ ↑ ↓ or ⌘ ⇧ Home / End','Ctrl ⇧ Home / End'],['Select all','⌘ A','Ctrl A']];
-const keys=()=>dlgs('Keyboard shortcuts','<p style="color:#aaa">Ctrl or ⌘ both work. Tab and Shift + Tab move through card sides. Browsers keep Ctrl/⌘ + T, W, P, N for themselves; the installed app and the on-screen buttons always work.</p>'+
- A.filter(a=>a[3]).map(a=>`<div class="kr"><span><b>${a[1]}</b><br><small>${a[2]}</small></span><kbd>${kl(a[3])}</kbd></div>`).join('')+'<h3>Moving and selecting text</h3>'+
+const keys=()=>dlgs('Keyboard shortcuts','<p style="color:#aaa">Windows and Android use Ctrl and Alt. Mac and iOS use ⌘ and ⌥ (Ctrl also works). On iPhone, iPad and Android, shortcuts need a hardware keyboard; every action also has an on-screen button. Tab and Shift + Tab move through card sides. Browsers keep Ctrl/⌘ + T, W and N for themselves, so those actions also have an Alt + Shift alternative, listed below.</p>'+
+ A.filter(a=>a[3]).map(a=>`<div class="kr"><span><b>${a[1]}</b><br><small>${a[2]}</small></span><span style='text-align:right'><small>Windows / Android</small> <kbd>${kl(a[3],0)}</kbd><br><small>Mac / iOS</small> <kbd>${kl(a[3],1)}</kbd></span></div>`).join('')+'<h3>Moving and selecting text</h3>'+
  NAV.map(n=>`<div class="kr"><span>${n[0]}</span><span><small>Mac</small> <kbd>${n[1]}</kbd> <small>Win</small> <kbd>${n[2]}</kbd></span></div>`).join(''),[['Close',0,1]]);
-const tour=()=>{fab(1);const els=[...document.querySelectorAll('[data-n]')],box=document.createElement('div');let i=0;box.id='tr';document.body.append(box);
+const tour=()=>{fab(1);const els=[...document.querySelectorAll('[data-n]')].filter(e=>e.getClientRects().length),box=document.createElement('div');let i=0;box.id='tr';document.body.append(box);
  const end=()=>{els.forEach(e=>e.classList.remove('hl'));box.remove();fab(0)};
  const show=()=>{els.forEach(e=>e.classList.remove('hl'));const e=els[i];e.classList.add('hl');e.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
   box.innerHTML=`<b>${e.dataset.n}</b><p>${e.dataset.d}</p>${e.dataset.k?`<kbd>${e.dataset.k}</kbd>`:''}<div class="bt"><small>${i+1} / ${els.length}</small><button class="sk">Skip</button><button class="pm nx">${i<els.length-1?'Next':'Done'}</button></div>`;
@@ -194,9 +214,9 @@ const tour=()=>{fab(1);const els=[...document.querySelectorAll('[data-n]')],box=
 const KM={};A.forEach(a=>a[3]&&a[3].split('|').forEach(k=>KM[k]=a));
 addEventListener('keydown',e=>{if(document.querySelector('.ov')){if(e.key==='Escape')[...document.querySelectorAll('.ov')].pop().remove();return}
  if(e.key==='Escape'){fab(0);return}
- if(e.code==='Tab'&&!e.ctrlKey&&!e.metaKey&&!e.altKey){e.preventDefault();go(S.s+(e.shiftKey?-1:1));return}
- const sig=(e.ctrlKey||e.metaKey?'m+':'')+(e.altKey?'a+':'')+(e.shiftKey?'s+':'')+(e.code.startsWith('Key')?e.code[3]:e.code.replace('Digit','')),a=KM[sig];if(a){e.preventDefault();a[6]()}},true);
-document.addEventListener('click',e=>{const t=e.target.closest('[data-id]');if(t){if(t.dataset.id==='fab')fab();else{A.find(r=>r[0]===t.dataset.id)[6]();if(t.classList.contains('fb'))fab(0)}return}if(!e.target.closest('#fab'))fab(0)});
+ if((e.code==='Tab'||e.key==='Tab')&&!e.ctrlKey&&!e.metaKey&&!e.altKey){e.preventDefault();go(S.s+(e.shiftKey?-1:1));return}
+ const sig=(e.ctrlKey||e.metaKey?'m+':'')+(e.altKey?'a+':'')+(e.shiftKey?'s+':'')+kn(e),a=KM[sig];if(a){e.preventDefault();run(a)}},true);
+document.addEventListener('click',e=>{const md=e.target.closest('[data-mode]');if(md){setMode(md.dataset.mode);return}const t=e.target.closest('[data-id]');if(t){if(t.dataset.id==='fab')fab();else{run(A.find(r=>r[0]===t.dataset.id));if(t.classList.contains('fb'))fab(0)}return}if(!e.target.closest('#fab'))fab(0)});
 document.addEventListener('mousedown',e=>{if(e.target.closest('.ib,.fb,.fm'))e.preventDefault()});
 const upd=()=>{['bold','italic','underline'].forEach(c=>{const b=$(`[data-id=${c}]`);try{b.classList.toggle('on',document.queryCommandState(c))}catch(e){}})};
 document.addEventListener('selectionchange',()=>{const s=getSelection();if(s.rangeCount&&ed.contains(s.anchorNode)){rg=s.getRangeAt(0).cloneRange();upd()}});
@@ -220,4 +240,3 @@ addEventListener('pagehide',sv);document.addEventListener('visibilitychange',()=
 x('defaultParagraphSeparator','div');draw();ed.scrollTop=S.sc;
 try{if(!localStorage.fc_seen){localStorage.fc_seen=1;setTimeout(()=>toast('Tap the i button for a guided tour'),600)}}catch(e){}
 </script></body></html>
-
