@@ -26,7 +26,7 @@ svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-l
 #pg{flex:1;min-height:0;display:flex;flex-direction:column;perspective:900px}
 #ed{flex:1;overflow:auto;padding:22px 24px 90px;outline:0;font:400 1.35rem/1.6 Newsreader,Georgia,serif;-webkit-user-select:text;user-select:text;touch-action:pan-y;overflow-wrap:anywhere;transition:background .4s,color .4s}
 #ed:empty::before{content:attr(data-ph);color:#666;pointer-events:none}
-#ed .im{display:block;max-width:100%;height:auto;margin:12px 0;border-radius:10px}
+#ed .im{display:block;max-width:100%;height:auto;margin:12px 0;border-radius:10px;image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;transform:translateZ(0);backface-visibility:hidden}
 #ed table{border-collapse:collapse;width:100%;margin:12px 0;table-layout:fixed}
 #ed td{border:1px solid #888;padding:8px;vertical-align:top;min-height:2em}
 #ed a{color:inherit;text-decoration:underline;text-underline-offset:3px}
