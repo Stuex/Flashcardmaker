@@ -74,9 +74,10 @@ input{background:#000;color:#fff;border:1.5px solid #444;border-radius:10px;padd
 <div id="tp"></div><div id="ts"></div>
 <input type="file" id="fi" accept=".xlsx,.xls,.csv" hidden><input type="file" id="fim" accept="image/*" hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script>
 const $=s=>document.querySelector(s),ed=$('#ed'),K='fc_v2',mac=/Mac|iPhone|iPad/.test(navigator.platform+navigator.userAgent);
-let S={cards:[{f:'',b:''}],s:0,fs:1,sc:0,mode:'edit',xl:null},rg=null,quiet=false,dl=null,warned=0,tt,xwb=null;
+let S={cards:[{f:'',b:''}],s:0,fs:1,sc:0,mode:'edit',xl:null},rg=null,quiet=false,dl=null,warned=0,tt,xwb=null,xbuf=null;
 try{const j=JSON.parse(localStorage.getItem(K)||'null');if(j&&j.cards&&j.cards.length){S=Object.assign(S,j);S.s=Math.min(S.s,S.cards.length*2-1)}}catch(e){}
 try{window.claude&&claude.use&&claude.use('downloads').then(d=>dl=d).catch(()=>{})}catch(e){}
 const esc=s=>s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])),safe=u=>/^(https?:|mailto:|tel:)/i.test(u||'');
@@ -87,7 +88,7 @@ const persist=()=>{if(quiet)return;try{localStorage.setItem(K,JSON.stringify(S))
 const sv=()=>{const c=S.cards[S.s>>1];c[S.s&1?'b':'f']=ed.innerHTML==='<br>'?'':ed.innerHTML;S.sc=ed.scrollTop;persist()};
 const draw=dir=>{const i=S.s>>1,sd=S.s&1,c=S.cards[i],bg=c[sd?'bc':'fc'];rg=null;
  ed.innerHTML=c[sd?'b':'f']||'';ed.style.background=bg||'';ed.style.color=bg?(lum(bg)>.55?'#000':'#fff'):'';
- ed.style.fontSize=1.35*S.fs+'rem';ed.dataset.ph=sd?'Back: type the answer…':'Front: type the question…';
+ ed.style.fontSize=1.35*S.fs+'rem';ed.dataset.ph=sd?'Back: type the answer...':'Front: type the question...';
  $('#lb').textContent=`Card ${i+1} of ${S.cards.length} · ${sd?'Back':'Front'}`;$('#pr i').style.width=(S.s+1)/(S.cards.length*2)*100+'%';
  ed.className='';if(dir){void ed.offsetWidth;ed.className='a-'+dir}ed.scrollTop=0;
  if(document.activeElement===ed){const r=document.createRange();r.selectNodeContents(ed);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r)}applyMode();persist()};
@@ -123,36 +124,57 @@ const zoom=d=>{S.fs=Math.max(.7,Math.min(2.5,S.fs+d));ed.style.fontSize=1.35*S.f
 const isView=()=>!!(S.xl&&S.mode==='view');
 const applyMode=()=>{const v=isView();document.body.classList.toggle('xl',!!S.xl);document.body.classList.toggle('vw',v);ed.contentEditable=v?'false':'true';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===(v?'view':'edit')))};
 const setMode=m=>{if(!isView())sv();S.mode=m;draw();toast(m==='view'?'View Only: cards are read-only':'Edit Only: you can change cards')};
-const wipe=(m,keep)=>{try{localStorage.removeItem(K)}catch(e){}quiet=true;xwb=null;S={cards:[{f:'',b:''}],s:0,fs:keep?S.fs:1,sc:0};draw('n');toast(m)};
+const wipe=(m,keep)=>{try{localStorage.removeItem(K)}catch(e){}quiet=true;xwb=null;xbuf=null;S={cards:[{f:'',b:''}],s:0,fs:keep?S.fs:1,sc:0};draw('n');toast(m)};
 const run=a=>{if(isView()&&(a[5]==='tb'||a[0]==='add'||a[0]==='del'))return toast('View Only mode. Switch to Edit only to change cards.');a[6]()};
 const kn=e=>{const m={'[':'BracketLeft',']':'BracketRight','=':'Equal','-':'Minus','/':'Slash'};return /^Key[A-Z]$/.test(e.code)?e.code[3]:/^Digit[0-9]$/.test(e.code)?e.code[5]:e.code&&e.code!=='Unidentified'?e.code:(m[e.key]||(e.key||'').toUpperCase())};
 const fsz=d=>{foc();const s=getSelection();if(!s.rangeCount||s.isCollapsed||!ed.contains(s.anchorNode)){zoom(d/16.2);return}let n=s.getRangeAt(0).startContainer;n=n.nodeType===3?n.parentNode:n;const nw=Math.max(6,Math.min(120,Math.round(parseFloat(getComputedStyle(n).fontSize)*.75)+d));x('styleWithCSS',false);x('fontSize','7');ed.querySelectorAll("font[size='7']").forEach(f=>{f.removeAttribute('size');f.style.fontSize=nw+'pt'});sv()};
 const fab=v=>$('#fab').classList.toggle('open',v===undefined?undefined:!!v);
 /* import / export */
 $('#fi').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
- try{const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellStyles:true}),ws=wb.Sheets[wb.SheetNames[0]],rr=XLSX.utils.decode_range(ws['!ref']||'A1:A1'),out=[];
+ try{const bf=await f.arrayBuffer(),wb=XLSX.read(bf,{type:'array',cellStyles:true}),ws=wb.Sheets[wb.SheetNames[0]],rr=XLSX.utils.decode_range(ws['!ref']||'A1:A1'),out=[];
  const cd=(r,c)=>{const z=ws[XLSX.utils.encode_cell({r,c})];if(!z)return['',''];let h=esc(String(z.w??z.v??'')).replace(/\r?\n/g,'<br>');
   if(h&&z.l&&safe(z.l.Target))h=`<a href="${esc(z.l.Target)}" target="_blank" rel="noopener">${h}</a>`;const s=z.s;return[h,s&&s.patternType==='solid'&&s.fgColor&&s.fgColor.rgb?'#'+s.fgColor.rgb.slice(-6):'']};
  for(let r=rr.s.r;r<=rr.e.r;r++){const a=cd(r,0),b=cd(r,1);if(a[0]||b[0])out.push({f:a[0],fc:a[1],b:b[0],bc:b[1],r})}
  if(!out.length)return toast('No data found in columns A and B');
- const fin=rep=>{sv();quiet=false;if(rep||!S.xl){S.xl={name:f.name,sheet:wb.SheetNames[0],max:rr.e.r};xwb=wb;S.mode='edit'}else out.forEach(c=>delete c.r);if(rep){S.cards=out;S.s=0}else{S.s=S.cards.length*2;S.cards.push(...out)}draw('n');toast(out.length+' cards imported. Use View only / Edit only below.')};
+ const fin=rep=>{sv();quiet=false;if(rep||!S.xl){S.xl={name:f.name,sheet:wb.SheetNames[0],max:rr.e.r};xwb=wb;xbuf=bf;S.mode='edit'}else out.forEach(c=>delete c.r);if(rep){S.cards=out;S.s=0}else{S.s=S.cards.length*2;S.cards.push(...out)}draw('n');toast(out.length+' cards imported. Use View only / Edit only below.')};
  if(S.cards.length===1&&!S.cards[0].f&&!S.cards[0].b)fin(1);else dlgs('Import Excel','Replace your current cards, or add the imported ones at the end?',[['Cancel'],['Add to end',()=>fin(0)],['Replace',()=>fin(1),1]])}
  catch(err){toast('Could not read that file')}};
-const pl=h=>{const t=document.createElement('div');t.style.cssText='position:fixed;left:-9999px;top:0;width:600px';t.innerHTML=h;t.querySelectorAll('img').forEach(i=>i.replaceWith('[image]'));
+/* ---- Excel export with images (ExcelJS) ---- */
+const pl=h=>{const t=document.createElement('div');t.style.cssText='position:fixed;left:-9999px;top:0;width:600px';t.innerHTML=h;t.querySelectorAll('img').forEach(i=>i.remove());
  t.querySelectorAll('ol').forEach(o=>[...o.children].forEach((li,j)=>li.prepend((o.className==='al'?String.fromCharCode(65+j%26):j+1)+') ')));
  document.body.append(t);const a=t.querySelector('a[href]'),r=[t.innerText.trim(),a&&a.href];t.remove();return r};
-const newWb=()=>{const rows=[],ls=[];S.cards.forEach((c,i)=>{const a=pl(c.f),b=pl(c.b);rows.push([a[0],b[0]]);if(a[1])ls.push(['A'+(i+1),a[1]]);if(b[1])ls.push(['B'+(i+1),b[1]])});
- const ws=XLSX.utils.aoa_to_sheet(rows);ls.forEach(([k,u])=>{if(ws[k])ws[k].l={Target:u}});ws['!cols']=[{wch:40},{wch:60}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Flashcards');return wb};
-const savWb=async(wb,name)=>{
- const blob=new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+const imgs=h=>{const d=document.createElement('div');d.innerHTML=h;return[...d.querySelectorAll('img')].map(i=>i.src).filter(s=>/^data:image\//.test(s))};
+const idim=s=>new Promise(r=>{const i=new Image();i.onload=()=>r([i.width,i.height]);i.onerror=()=>r([0,0]);i.src=s});
+const PX=9525,CW=[285,425]; /* column pixel widths for wch 40 and 60 */
+const prep=async(h,c)=>{const t=pl(h),th=t[0]?t[0].split('\n').reduce((n,l)=>n+Math.max(1,Math.ceil(l.length/(c?55:36))),0)*20+6:0,ds=[];
+ for(const s of imgs(h)){const[iw,ih]=await idim(s);if(iw){const k=Math.min(1,(CW[c]-10)/iw);ds.push({s,w:iw*k,h:ih*k})}}
+ const sum=ds.reduce((n,d)=>n+d.h+6,0);let k=1;if(th+sum>540&&sum)k=Math.max(.1,(540-th)/sum);
+ ds.forEach(d=>{d.w*=k;d.h*=k});return{t,th,ds,px:th+ds.reduce((n,d)=>n+d.h+6,0)}};
+const put=(wb,ws,r,c,p,bg)=>{const cell=ws.getCell(r+1,c+1);cell.value=p.t[0]?(p.t[1]?{text:p.t[0],hyperlink:p.t[1]}:p.t[0]):null;
+ cell.alignment={vertical:'top',wrapText:true};
+ if(bg)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+bg.slice(1)}};
+ let y=p.th+4;p.ds.forEach(d=>{const ext=/image\/png/.test(d.s)?'png':/image\/gif/.test(d.s)?'gif':'jpeg',
+  id=wb.addImage({base64:d.s.split(',')[1],extension:ext});
+  ws.addImage(id,{tl:{nativeCol:c,nativeColOff:4*PX,nativeRow:r,nativeRowOff:Math.round(y*PX)},ext:{width:d.w,height:d.h},editAs:'oneCell'});y+=d.h+6})};
+const row=async(wb,ws,r,c)=>{const a=await prep(c.f,0),b=await prep(c.b,1);put(wb,ws,r,0,a,c.fc);put(wb,ws,r,1,b,c.bc);
+ const px=Math.max(a.px,b.px),rw=ws.getRow(r+1);if(px>20)rw.height=Math.min(409,Math.max(rw.height||15,px*.75))};
+const newWb=async()=>{const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Flashcards');ws.columns=[{width:40},{width:60}];
+ for(let i=0;i<S.cards.length;i++)await row(wb,ws,i,S.cards[i]);return wb};
+const oldWb=async()=>{const wb=new ExcelJS.Workbook();let ws;
+ if(xbuf&&/\.xlsx$/i.test(S.xl.name)){try{await wb.xlsx.load(xbuf);ws=wb.getWorksheet(S.xl.sheet)||wb.worksheets[0]}catch(e){ws=null}}
+ if(!ws){const w2=new ExcelJS.Workbook();return await(async()=>{const w=w2,s=w.addWorksheet(S.xl.sheet||'Flashcards');s.columns=[{width:40},{width:60}];let nx=0;for(const c of S.cards)await row(w,s,c.r!=null?c.r:nx++,c);return w})()}
+ try{ws._media=(ws._media||[]).filter(m=>!(m.range&&m.range.tl&&m.range.tl.nativeCol<=1))}catch(e){}
+ for(let r=1;r<=S.xl.max+1;r++){ws.getCell(r,1).value=null;ws.getCell(r,2).value=null}
+ let nx=S.xl.max+1;
+ for(const c of S.cards)await row(wb,ws,c.r!=null?c.r:nx++,c);
+ return wb};
+const savWb=async(mk,name)=>{let blob;
+ try{const wb=await mk();blob=new Blob([await wb.xlsx.writeBuffer()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
+ catch(e){console.error(e);return toast('Could not build the Excel file')}
  try{if(dl)await dl.save({filename:name,data:blob});else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click()}
   wipe('Saved. Saved data cleared.',1)}catch(e){toast('Save cancelled. Your data is still saved.')}};
-const oldWb=()=>{const n=S.xl.sheet,w=xwb||(()=>{const b=XLSX.utils.book_new();XLSX.utils.book_append_sheet(b,XLSX.utils.aoa_to_sheet([]),n);return b})(),ws=w.Sheets[n]||w.Sheets[w.SheetNames[0]],old=XLSX.utils.decode_range(ws['!ref']||'A1:B1');let mx=S.xl.max,nx=S.xl.max+1;
- for(let r=0;r<=S.xl.max;r++){delete ws[XLSX.utils.encode_cell({r,c:0})];delete ws[XLSX.utils.encode_cell({r,c:1})]}
- S.cards.forEach(cd=>{const r=cd.r!=null?cd.r:nx++;mx=Math.max(mx,r);[[cd.f,0],[cd.b,1]].forEach(([h,c])=>{const t=pl(h);if(!t[0])return;const z={t:'s',v:t[0]};if(t[1])z.l={Target:t[1]};ws[XLSX.utils.encode_cell({r,c})]=z})});
- ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(mx,old.e.r),c:Math.max(1,old.e.c)}});return w};
-const exp=()=>{sv();const nw=()=>savWb(newWb(),'flashcards.xlsx');if(!S.xl)return nw();
- dlgs('Save changes','<p>Saving means writing your cards to Excel: back into the file you opened, or as a separate new Excel file.</p><p>Opened file: <b>'+esc(S.xl.name)+'</b></p><p style="color:#aaa">Your browser asks where to save. Pick the original file to replace it. Saved data is cleared from this browser afterwards.</p>',[['Cancel'],['New Excel file',nw],['Existing file',()=>savWb(oldWb(),S.xl.name.replace(/[.][^.]*$/,'')+'.xlsx'),1]])};
+const exp=()=>{sv();const nw=()=>savWb(newWb,'flashcards.xlsx');if(!S.xl)return nw();
+ dlgs('Save changes','<p>Saving means writing your cards to Excel: back into the file you opened, or as a separate new Excel file.</p><p>Opened file: <b>'+esc(S.xl.name)+'</b></p><p style="color:#aaa">Your browser asks where to save. Pick the original file to replace it. Saved data is cleared from this browser afterwards.</p>',[['Cancel'],['New Excel file',nw],['Existing file',()=>savWb(oldWb,S.xl.name.replace(/[.][^.]*$/,'')+'.xlsx'),1]])};
 const quit=()=>dlgs('Quit without saving?','<p>Saving means exporting a new Excel file, or saving your changes back into the Excel file you opened.</p><p>If you quit now, every card and any imported Excel data is removed from this browser and the workspace is reset.</p>',[['Cancel'],['Save first',()=>exp()],['Quit without saving',()=>wipe('Workspace reset. Local data cleared.'),1]]);
 /* actions: id, name, description, keys, icon, place, fn */
 const P=p=>`<svg viewBox="0 0 24 24"><path d="${p}"/></svg>`,ck=c=>`<span class="cl" style="color:${c}">A</span>`,hk=c=>`<span class="hc" style="background:${c}">A</span>`;
@@ -186,7 +208,7 @@ const A=[
 ['prv','Previous','Go back one side: Back to Front, then the previous card. You can also swipe right','s+Tab',P('M15 18l-6-6 6-6'),'bot',()=>go(S.s-1)],
 ['nxt','Next','Go forward one side: Front to Back, then the next card. On the last side it adds a new card. You can also swipe left','Tab',P('M9 18l6-6-6-6'),'bot',()=>go(S.s+1)],
 ['imp','Import Excel','Load an Excel file: column A becomes the fronts, column B the backs, and cell fill colors are kept','a+O',P('M12 15V3M7 8l5-5 5 5M4 17v4h16v-4'),'fab',()=>$('#fi').click()],
-['exp','Save / Export Excel','Save fronts in column A and backs in column B. For an imported file you choose: save into the opened file or export a new one. Saved data is then cleared','m+S',P('M12 3v12M7 10l5 5 5-5M4 17v4h16v-4'),'fab',()=>exp()],
+['exp','Save / Export Excel','Save fronts in column A and backs in column B, including images. For an imported file you choose: save into the opened file or export a new one. Saved data is then cleared','m+S',P('M12 3v12M7 10l5 5 5-5M4 17v4h16v-4'),'fab',()=>exp()],
 ['add','Add card','Insert a blank card after this one','a+N',P('M4 4h16v16H4zM12 8v8M8 12h8'),'fab',add],
 ['del','Delete card','Delete this card. You can undo right away','a+D',P('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13'),'fab',del],
 ['all','All cards','Browse every card and jump to one','a+C',P('M4 5h6v6H4zM14 5h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z'),'fab',all],
