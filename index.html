@@ -26,7 +26,7 @@ svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-l
 #pg{flex:1;min-height:0;display:flex;flex-direction:column;perspective:900px}
 #ed{flex:1;overflow:auto;padding:22px 24px 90px;outline:0;font:400 1.35rem/1.6 Newsreader,Georgia,serif;-webkit-user-select:text;user-select:text;touch-action:pan-y;overflow-wrap:anywhere;transition:background .4s,color .4s}
 #ed:empty::before{content:attr(data-ph);color:#666;pointer-events:none}
-#ed .im{display:block;max-width:100%;height:auto;margin:12px 0;border-radius:10px;image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;transform:translateZ(0);backface-visibility:hidden}
+#ed .im{display:block;max-width:100%;height:auto;margin:12px auto;border-radius:10px;border:none;outline:none;box-shadow:none;vertical-align:bottom;transform:none;backface-visibility:visible}
 #ed table{border-collapse:collapse;width:100%;margin:12px 0;table-layout:fixed}
 #ed td{border:1px solid #888;padding:8px;vertical-align:top;min-height:2em}
 #ed a{color:inherit;text-decoration:underline;text-underline-offset:3px}
@@ -118,7 +118,7 @@ const addImg=f=>{
     const r=new FileReader();
     r.onload=()=>{
       foc();
-      x('insertHTML',`<div><img class="im" src="${r.result}"></div><div><br></div>`);
+            x('insertHTML',`<div style="text-align:center;outline:none;border:none;"><img class="im" src="${r.result}"></div><div><br></div>`);
       sv();
     };
     r.readAsDataURL(f);
@@ -135,7 +135,7 @@ const addImg=f=>{
       c.height=im.height*k;
       c.getContext('2d').drawImage(im,0,0,c.width,c.height);
       foc();
-      x('insertHTML',`<div><img class="im" src="${c.toDataURL('image/jpeg',.92)}"></div><div><br></div>`);
+            x('insertHTML',`<div style="text-align:center;outline:none;border:none;"><img class="im" src="${c.toDataURL('image/jpeg',.92)}"></div><div><br></div>`);
       sv();
     };
     im.src=r.result;
@@ -231,7 +231,7 @@ $('#fi').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)re
  try{IM=await xlImgs(ab,sn)}catch(er){console.error(er);ierr=/\.xls[xm]$/i.test(f.name)}
  const cd=(r,c)=>{const z=ws[XLSX.utils.encode_cell({r,c})];if(!z)return['',''];let h=IM.rich.has(r+','+c)?'':esc(String(z.w??z.v??'')).replace(/\r?\n/g,'<br>');
   if(h&&z.l&&safe(z.l.Target))h=`<a href="${esc(z.l.Target)}" target="_blank" rel="noopener">${h}</a>`;const s=z.s;return[h,s&&s.patternType==='solid'&&s.fgColor&&s.fgColor.rgb?'#'+s.fgColor.rgb.slice(-6):'']};
- const ih=(r,c)=>((IM.m[r]||[])[c]||[]).sort((p,q)=>p.o-q.o).map(p=>`<div><img class="im" src="${p.u}"></div>`).join(''),last=Math.max(rr.e.r,...Object.keys(IM.m).map(Number));
+ const ih=(r,c)=>((IM.m[r]||[])[c]||[]).sort((p,q)=>p.o-q.o).map(p=>`<div style="text-align:center;outline:none;border:none;"><img class="im" src="${p.u}"></div>`).join(''),last=Math.max(rr.e.r,...Object.keys(IM.m).map(Number));
  for(let r=0;r<=last;r++){const a=cd(r,0),b=cd(r,1),ai=ih(r,0),bi=ih(r,1);if(a[0]||b[0]||ai||bi)out.push({f:a[0]+ai,fc:a[1],b:b[0]+bi,bc:b[1],r})}
  if(!out.length)return toast('No data found in columns A and B');
  const fin=rep=>{sv();quiet=false;if(rep||!S.xl){S.xl={name:f.name,sheet:sn,max:last};xwb=wb;S.mode='edit'}else out.forEach(c=>delete c.r);if(rep){S.cards=out;S.s=0}else{S.s=S.cards.length*2;S.cards.push(...out)}draw('n');
