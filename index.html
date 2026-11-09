@@ -112,8 +112,36 @@ const link=()=>{foc();if(anc('A')){ex('unlink');return}
  if(getSelection().isCollapsed)x('insertHTML',`<a href="${esc(u)}">${esc(u)}</a>&nbsp;`);else x('createLink',u);ed.querySelectorAll('a').forEach(a=>{a.target='_blank';a.rel='noopener'});sv()},1]])};
 const tbl=()=>{foc();const o=dlgs('Insert table','<label>Rows<input id="tR" type="number" min="1" max="20" value="3"></label><label>Columns<input id="tC" type="number" min="1" max="8" value="2"></label>',[['Cancel'],['Insert',()=>{
  const r=Math.min(20,+o.querySelector('#tR').value||3),c=Math.min(8,+o.querySelector('#tC').value||2);foc();x('insertHTML','<table><tbody>'+('<tr>'+'<td><br></td>'.repeat(c)+'</tr>').repeat(r)+'</tbody></table><div><br></div>');sv()},1]])};
-const addImg=f=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);
- foc();x('insertHTML',`<div><img class="im" src="${c.toDataURL('image/jpeg',.8)}"></div><div><br></div>`);sv()};im.src=r.result};r.readAsDataURL(f)};
+const addImg=f=>{
+  // If file is 401 KB or smaller (approx. 410,624 bytes), use raw Data URL directly without resizing/compressing
+  if(f.size <= 410624){
+    const r=new FileReader();
+    r.onload=()=>{
+      foc();
+      x('insertHTML',`<div><img class="im" src="${r.result}"></div><div><br></div>`);
+      sv();
+    };
+    r.readAsDataURL(f);
+    return;
+  }
+  
+  // For images larger than 401 KB, resize canvas and balance quality so it target-compresses around ~400 KB minimum
+  const r=new FileReader();
+  r.onload=()=>{
+    const im=new Image();
+    im.onload=()=>{
+      const k=Math.min(1,1200/Math.max(im.width,im.height)),c=document.createElement('canvas');
+      c.width=im.width*k;
+      c.height=im.height*k;
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      foc();
+      x('insertHTML',`<div><img class="im" src="${c.toDataURL('image/jpeg',.92)}"></div><div><br></div>`);
+      sv();
+    };
+    im.src=r.result;
+  };
+  r.readAsDataURL(f);
+};
 $('#fim').onchange=e=>{const f=e.target.files[0];e.target.value='';f&&addImg(f)};
 const add=()=>{sv();const i=(S.s>>1)+1;S.cards.splice(i,0,{f:'',b:''});S.s=i*2;draw('n')};
 const del=()=>{const bk=JSON.stringify(S);S.cards.splice(S.s>>1,1);if(!S.cards.length)S.cards.push({f:'',b:''});S.s=Math.min(S.s&~1,S.cards.length*2-2);draw('p');toast('Card deleted','Undo',()=>{S=JSON.parse(bk);draw('n')})};
@@ -135,8 +163,25 @@ const xml=s=>new DOMParser().parseFromString(s,'application/xml'),dir=p=>p.slice
 const rslv=(b,t)=>{if(t[0]==='/')return t.slice(1);const o=[];(dir(b)+t).split('/').forEach(s=>s==='..'?o.pop():s!=='.'&&o.push(s));return o.join('/')};
 const rels=async(z,p)=>{const f=z.file(dir(p)+'_rels/'+p.split('/').pop()+'.rels'),m={};if(f)[...xml(await f.async('string')).getElementsByTagName('Relationship')].forEach(e=>{if(e.getAttribute('TargetMode')!=='External')m[e.getAttribute('Id')]={t:rslv(p,e.getAttribute('Target')),y:e.getAttribute('Type')}});return m};
 const shPath=async(z,n)=>{const d=xml(await z.file('xl/workbook.xml').async('string')),s=[...d.getElementsByTagName('sheet')],h=s.find(e=>e.getAttribute('name')===n)||s[0],r=await rels(z,'xl/workbook.xml');return r[h.getAttributeNS(NR,'id')].t};
-const shrink=u=>new Promise(res=>{const i=new Image();i.onerror=()=>res(null);i.onload=()=>{const k=Math.min(1,900/Math.max(i.width,i.height));if(k===1&&u.length<500000)return res(u);const c=document.createElement('canvas'),g=c.getContext('2d'),png=/image\/png/.test(u);c.width=Math.max(1,Math.round(i.width*k));c.height=Math.max(1,Math.round(i.height*k));if(!png){g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height)}g.drawImage(i,0,0,c.width,c.height);res(c.toDataURL(png?'image/png':'image/jpeg',.82))};i.src=u});
-const xlImgs=async(ab,sn)=>{const z=await JSZip.loadAsync(ab),sp=await shPath(z,sn),R={m:{},rich:new Set(),cnt:0,skip:0};
+const shrink=u=>new Promise(res=>{
+  // Base64 string length for 410 KB (~410,624 bytes) is approx ~547,500 chars.
+  // If data URL length is below 547,500 (~401 KB file equivalent), skip compression and return original data URL directly.
+  if(u.length <= 547500) return res(u);
+  
+  const i=new Image();
+  i.onerror=()=>res(null);
+  i.onload=()=>{
+    const k=Math.min(1,1200/Math.max(i.width,i.height));
+    const c=document.createElement('canvas'),g=c.getContext('2d'),png=/image\/png/.test(u);
+    c.width=Math.max(1,Math.round(i.width*k));
+    c.height=Math.max(1,Math.round(i.height*k));
+    if(!png){g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height)}
+    g.drawImage(i,0,0,c.width,c.height);
+    res(c.toDataURL(png?'image/png':'image/jpeg',.92));
+  };
+  i.src=u;
+});
+ const xlImgs=async(ab,sn)=>{const z=await JSZip.loadAsync(ab),sp=await shPath(z,sn),R={m:{},rich:new Set(),cnt:0,skip:0};
  const put=async(r,c,p,o)=>{if(c>1)return;const f=z.file(p),mi=MT[p.split('.').pop().toLowerCase()],u=f&&mi&&await shrink(`data:${mi};base64,${await f.async('base64')}`);if(!u)return void R.skip++;(R.m[r]=R.m[r]||[[],[]])[c].push({u,o});R.cnt++};
  const sr=await rels(z,sp);
  for(const k in sr){if(!/\/drawing$/.test(sr[k].y)||!z.file(sr[k].t))continue;const dp=sr[k].t,dr=await rels(z,dp),d=xml(await z.file(dp).async('string'));
