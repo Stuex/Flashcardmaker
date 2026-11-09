@@ -200,8 +200,9 @@ const shrink=u=>new Promise(res=>{
 const MN=[285,425],ldI=s=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=s});
 const layPics=async()=>{const ws=PW.ws,by={},out=[];ws['!cols']=ws['!cols']||[];ws['!rows']=ws['!rows']||[];
  const cpx=c=>{const o=ws['!cols'][c]||(ws['!cols'][c]={});let p=o.wpx||(o.wch?Math.round(o.wch*7+5):64);if(p<MN[c]){p=MN[c];o.wpx=p}return p};
- for(const p of PQ){const im=await ldI(p.src);if(!im)continue;const nw=im.naturalWidth,nh=im.naturalHeight,k=Math.min(1,(cpx(p.c)-12)/nw);let u=p.src,ext=(/^data:image\/(png|jpeg|gif)/.exec(u)||[])[1];
-  if(!ext){const c=document.createElement('canvas');c.width=nw;c.height=nh;c.getContext('2d').drawImage(im,0,0);u=c.toDataURL('image/png');ext='png'}
+ for(const p of PQ){const im=await ldI(p.src);if(!im)continue;const nw=im.naturalWidth,nh=im.naturalHeight,k=Math.min(1,(cpx(p.c)-12)/nw);
+  const c=document.createElement('canvas');c.width=nw;c.height=nh;c.getContext('2d').drawImage(im,0,0);
+  const u=c.toDataURL('image/png'),ext='png';
   (by[p.r]=by[p.r]||[]).push({r:p.r,c:p.c,ext,b:u.split(',')[1],w:Math.max(1,Math.round(nw*k)),h:Math.max(1,Math.round(nh*k))})}
  for(const r in by){const L=by[r],cc=c=>L.filter(p=>p.c===c),tl=Math.max(...[0,1].map(c=>{const z=ws[XLSX.utils.encode_cell({r:+r,c})];return z&&z.v!=null&&z.v!==''?String(z.v).split('\n').length:0})),room=540-tl*20-4;
   let f=1,hh=0;[0,1].forEach(c=>{const l=cc(c);if(l.length)f=Math.min(f,Math.max(.05,(room-4*l.length-2)/l.reduce((s,p)=>s+p.h,0)))});
