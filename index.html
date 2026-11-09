@@ -125,17 +125,17 @@ const addImg=f=>{
     return;
   }
   
-  // For images larger than 401 KB, resize canvas and balance quality so it target-compresses around ~400 KB minimum
+  // For images larger than 401 KB, resize canvas cleanly with rounded pixel dimensions and lossy-free PNG
   const r=new FileReader();
   r.onload=()=>{
     const im=new Image();
     im.onload=()=>{
       const k=Math.min(1,1200/Math.max(im.width,im.height)),c=document.createElement('canvas');
-      c.width=im.width*k;
-      c.height=im.height*k;
+      c.width=Math.max(1,Math.round(im.width*k));
+      c.height=Math.max(1,Math.round(im.height*k));
       c.getContext('2d').drawImage(im,0,0,c.width,c.height);
       foc();
-            x('insertHTML',`<div style="text-align:center;outline:none;border:none;"><img class="im" src="${c.toDataURL('image/jpeg',.92)}"></div><div><br></div>`);
+            x('insertHTML',`<div style="text-align:center;outline:none;border:none;"><img class="im" src="${c.toDataURL('image/png')}"></div><div><br></div>`);
       sv();
     };
     im.src=r.result;
@@ -172,12 +172,11 @@ const shrink=u=>new Promise(res=>{
   i.onerror=()=>res(null);
   i.onload=()=>{
     const k=Math.min(1,1200/Math.max(i.width,i.height));
-    const c=document.createElement('canvas'),g=c.getContext('2d'),png=/image\/png/.test(u);
+    const c=document.createElement('canvas'),g=c.getContext('2d');
     c.width=Math.max(1,Math.round(i.width*k));
     c.height=Math.max(1,Math.round(i.height*k));
-    if(!png){g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height)}
     g.drawImage(i,0,0,c.width,c.height);
-    res(c.toDataURL(png?'image/png':'image/jpeg',.92));
+    res(c.toDataURL('image/png'));
   };
   i.src=u;
 });
